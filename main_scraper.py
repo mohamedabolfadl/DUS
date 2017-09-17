@@ -8,15 +8,64 @@ Created on Mon Jul 25 15:43:31 2016
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from time import sleep
+import numpy as np
+import pandas as pd
 import math
 import re
 import csv
+
+
+
+def clean_price(inp):
+    x = inp.replace(' ','')
+    x = x.encode("utf-8")
+    x = x.replace('\xe2\x82\xac','')
+    x = x.replace('.','')
+
+    if '(' in x:
+        ind = x.find('(')
+        x=x[:ind]
+
+    
+    if ',' in x:
+        ind = x.find(',')
+        x=x[:ind]
+        
+    return int(x)
+
+def clean_qm(inp):
+    x = inp.replace(' ','')
+    x = x.encode("utf-8")
+    x = x.replace('m','')
+    x = x.replace('\xc2\xb2','')
+    x = x.replace('.','')
+    if ',' in x:
+        ind = x.find(',')
+        x=x[:ind]
+        
+    return int(x)
+
+def clean_rm(inp):
+    x = inp.replace(' ','')
+    x = inp.replace(',','.')
+    x = x.encode("utf-8")
+    return float(x)
+
+
+def clean_zp(inp):
+    x = inp.replace(' ','')
+    x = x.encode("utf-8")
+    return int(x[0:5])
+
+
 
 print "Started..."
 #link = "http://www.momondo.de/flightsearch/?Search=true&TripType=2&SegNo=2&SO0=MUC&SD0=LCA&SDP0=11-08-2016&SO1=LCA&SD1=MUC&SDP1=18-08-2016&AD=1&TK=ECO&DO=false&NA=false"
 tot_res = 1096.0
 tot_pages = int(math.ceil(tot_res/20.0))
 
+
+tot_pages = 53
 pg = 1
 min_room =1
 max_rent = 10000
@@ -29,7 +78,7 @@ driver = webdriver.PhantomJS(executable_path='C:/Users/Moh2/Desktop/scraping/pha
 sleep(2)
 
 print "Setting window size..."
-driver.set_window_size(1120,550)
+#driver.set_window_size(1120,550)
 print "Collecting expose IDs.."
 
 apt_ids = []
@@ -47,7 +96,7 @@ while pg<(tot_pages+1):
             print 'Result num '+str(res_ID)
             if element.has_attr('data-go-to-expose-id'):
                 tmp = element['data-go-to-expose-id'].encode("utf-8")
-                apt_ids.append(tmp)
+                apt_ids.append(int(tmp))
                 res_ID = res_ID+1
     pg = pg+1    
     
@@ -56,131 +105,90 @@ while pg<(tot_pages+1):
 
 with open("IDs_"+"100917"+".csv",'wb') as resultFile:
     wr = csv.writer(resultFile)
-    wr.writerows(apt_ids)
+    wr.writerows(zip(apt_ids))
 
 base_link = "https://www.immobilienscout24.de/expose/"
-
 apt_i = 1
-
+pr_list = []
+qm_list = []
+rm_list = []
+zp_list = []
 while apt_i<len(apt_ids)+1:
+#while apt_i <11:    
+    if (apt_i%10)==0:
+        print "Item "+str(apt_i)+" of "+str(len(apt_ids))
     
-    link = base_link + apt_ids[apt_i]
+    link = base_link + str(apt_ids[apt_i-1])
     driver.get(link)
     sleep(1)    
     s = BeautifulSoup(driver.page_source)
+
+    # Getting price
+    #dd class="is24qa-gesamtmiete grid-item three-fifths font-bold"    
+    elements = s.findAll("dd", class_="is24qa-gesamtmiete grid-item three-fifths font-bold")
+    for element in elements:
+        pr_list.append(element.string)
+        break
     
-    
+    # Getting qm
+    #<div class="is24qa-flaeche is24-value font-semibold"> 95,1 m² </div>  
+    elements = s.findAll("div", class_="is24qa-flaeche is24-value font-semibold")
+    for element in elements:
+        qm_list.append(element.string)
+        break
+        
+    # Getting room count
+    #<div class="is24qa-zi is24-value font-semibold"> 2 </div>
+    elements = s.findAll("div", class_="is24qa-zi is24-value font-semibold")
+    for element in elements:
+        rm_list.append(element.string)
+        break
+
+    # Getting zip code
+    #<span class="zip-region-and-country"> 40213 Düsseldorf</span>
+    elements = s.findAll("span", class_="zip-region-and-country")
+    for element in elements:
+        zp_list.append(element.string)
+        break
+
+
+
+
 
     apt_i=apt_i+1    
-    
-    
 
 
+res_mat = np.column_stack((apt_ids,zp_list,pr_list, rm_list, qm_list))
+res_pd = pd.DataFrame(res_mat)
+res_pd.columns = ['ID','PLZ','Price','Room count','Square meter']
 
+res_pd.to_csv('16092017_3.csv', header=True, index=False, encoding='utf-8')
 
+w_pd = res_pd
+w_pd['Price_i'] = w_pd['Price'].map(clean_price)
+w_pd['PLZ'] = w_pd['PLZ'].map(clean_zp)
+w_pd['Room count'] = w_pd['Room count'].map(clean_rm)
+w_pd['Square meter'] = w_pd['Square meter'].map(clean_qm)
 
+w_pd.to_csv('16092017_3_i.csv', header=True, index=False, encoding='utf-8')
+missing_heating_pd = w_pd[w_pd['Price'].str.contains('eiz')]
+missing_neben_pd = w_pd[w_pd['Price'].str.contains('eben')]
 
+missing_heating_neben_pd = w_pd[w_pd['Price'].str.contains('&')]
 
-
-if False:
-    print "Finished waiting"
-    
-    base_link = "https://www.immobilienscout24.de/expose/"
-    
-    
-    
-    
-    
-    elements = s.findAll("h1",class_="font-ellipsis font-l font-light font-line-s margin-bottom-none")
-    
-    for element in elements:
-    #    content = element.findNext("span",class_="font-normal")
-        content = element.findNext("span")
-        print content.string.encode('utf-8')
-        
-        #print content.string.encode('utf-8')
-    
-    elements = s.findAll("a",class_="result-list-entry__brand-title-container")
-    for element in elements:
-            tmp = element['data-go-to-expose-id'].encode("utf-8")
-            print tmp
-    
-    if False:
-        r = re.compile(r'height:\s\d+\.*\d*%;')
-        elements = s.findAll("div",style=r)
-        hlth =[]
-        prices=[]
-        dates = []
-        for element in elements:
-            tmp = element['style'].encode("utf-8")
-            if tmp:
-                kw="%"
-                loc = tmp.find(kw)
-                tmp = tmp[8:loc]
-                hlth.append(tmp)
-                dt = element.findNext("span",class_="date")
-                if dt:
-                    dates.append(dt.string.encode('utf-8'))
-                prc = element.findNext("span",class_="price")
-                if prc:
-                    tmp = prc.string.encode('utf-8')
-                    tmp = tmp[3:len(tmp)]
-                    prices.append(int(tmp))
-        
-        print "Grabbing prices"
-        elements = s.findAll("span",class_="value")
-        if elements:
-            prcs = []
-            for element in elements:
-                if (len(element.attrs)<2 and element.findParent('div',class_='price-pax')):
-                    prcs.append(element.string.encode('utf-8'))            
-        else:
-            print "No prices found"
-        
-        
-        print "Grabbing airports"
-        elements = s.findAll("span",class_="iata")
-        if elements:
-            arps = []
-            for element in elements:
-                if (len(element.attrs)<2):
-                    arps.append(element.string.encode('utf-8'))            
-        else:
-            print "No airports found"
-        
-        
-        print "Grabbing airlines"
-        elements = s.findAll("div",class_="names")
-        if elements:
-            als = []
-            for element in elements:
-                if (len(element.attrs)<2):
-                    als.append(element.string.encode('utf-8'))            
-        else:
-            print "No airlines found"
-        
-        
-        print "Grabbing travel times"
-        elements = s.findAll("div",class_="travel-time")
-        if elements:
-            travel_times = []
-            for element in elements:
-                if (len(element.attrs)<2):
-                    travel_times.append(element.string.encode('utf-8'))            
-        else:
-            print "No travel times found"
-        
-        
-        sleep(1.1)
-        #next_page_elem = driver.find_element_by_xpath('//*[@id="results-tickets"]/div[2]div[2]div/ul/li[6]')
-        next_page_elem = driver.find_element_by_xpath('//*[@id="results-tickets"]/div[2]/div[2]/div/ul/li[6]')
-        next_page_elem.click()
-        sleep(0.5)
-        driver.save_screenshot('pg2.png')
+heat_factor = 0.9
+missing_heating_pd['Price_i'] = missing_heating_pd['Price_i'] + heat_factor*missing_heating_pd['Square meter']
 
 
 
 driver.quit()
+
+
+
+
+
+
+
 
 
 
