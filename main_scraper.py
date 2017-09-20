@@ -87,7 +87,7 @@ while pg<(tot_pages+1):
         
     link = "https://www.immobilienscout24.de/Suche/S-T/P-"+str(pg)+"/Wohnung-Miete/Nordrhein-Westfalen/Duesseldorf/-/"+str(min_room)+",00-/"+str(min_area)+",00-/EURO--"+str(max_rent)+",00"
     driver.get(link)
-    sleep(2)
+    #sleep(2)
     s = BeautifulSoup(driver.page_source)
     print 'Page : '+str(pg)    
     elements = s.findAll("a",class_="result-list-entry__brand-title-container")
@@ -120,49 +120,73 @@ while apt_i<len(apt_ids)+1:
     
     link = base_link + str(apt_ids[apt_i-1])
     driver.get(link)
-    sleep(1)    
+    #sleep(1)    
     s = BeautifulSoup(driver.page_source)
 
     # Getting price
     #dd class="is24qa-gesamtmiete grid-item three-fifths font-bold"    
     elements = s.findAll("dd", class_="is24qa-gesamtmiete grid-item three-fifths font-bold")
+    pr_found=False
+    
     for element in elements:
-        pr_list.append(element.string)
+        curr_pr = element.string
+        pr_found = len(curr_pr)>0
+        
         break
     
     # Getting qm
     #<div class="is24qa-flaeche is24-value font-semibold"> 95,1 m² </div>  
     elements = s.findAll("div", class_="is24qa-flaeche is24-value font-semibold")
+    qm_found=False    
     for element in elements:
-        qm_list.append(element.string)
+        curr_qm = element.string
+        qm_found = len(curr_qm)>0
+
+        
         break
         
     # Getting room count
     #<div class="is24qa-zi is24-value font-semibold"> 2 </div>
     elements = s.findAll("div", class_="is24qa-zi is24-value font-semibold")
+    rm_found=False
     for element in elements:
-        rm_list.append(element.string)
+        curr_rm = element.string
+        rm_found = len(curr_rm)>0
+
+        
         break
 
     # Getting zip code
     #<span class="zip-region-and-country"> 40213 Düsseldorf</span>
     elements = s.findAll("span", class_="zip-region-and-country")
+    zp_found=False
     for element in elements:
-        zp_list.append(element.string)
+        curr_zp = element.string
+        zp_found = len(curr_zp)>0
+
+        
         break
 
 
-
-
+    if pr_found and qm_found and zp_found and rm_found:
+        pr_list.append(curr_pr)
+        qm_list.append(curr_qm)
+        rm_list.append(curr_rm)
+        zp_list.append(curr_zp)
+    else:
+        del apt_ids[apt_i-1]
 
     apt_i=apt_i+1    
 
+#N = min([ len(apt_ids),len(zp_list),len(pr_list), len(rm_list), len(qm_list)    ])
+#res_mat = np.column_stack((apt_ids[:N],zp_list[:N],pr_list[:N], rm_list[:N], qm_list[:N]))
 
 res_mat = np.column_stack((apt_ids,zp_list,pr_list, rm_list, qm_list))
+
 res_pd = pd.DataFrame(res_mat)
 res_pd.columns = ['ID','PLZ','Price','Room count','Square meter']
 
-res_pd.to_csv('16092017_3.csv', header=True, index=False, encoding='utf-8')
+res_pd.to_csv('20092017_3.csv', header=True, index=False, encoding='utf-8')
 
 w_pd = res_pd
 w_pd['Price_i'] = w_pd['Price'].map(clean_price)
@@ -170,7 +194,7 @@ w_pd['PLZ'] = w_pd['PLZ'].map(clean_zp)
 w_pd['Room count'] = w_pd['Room count'].map(clean_rm)
 w_pd['Square meter'] = w_pd['Square meter'].map(clean_qm)
 
-w_pd.to_csv('16092017_3_i.csv', header=True, index=False, encoding='utf-8')
+w_pd.to_csv('20092017_3_i.csv', header=True, index=False, encoding='utf-8')
 missing_heating_pd = w_pd[w_pd['Price'].str.contains('eiz')]
 missing_neben_pd = w_pd[w_pd['Price'].str.contains('eben')]
 
@@ -182,13 +206,6 @@ missing_heating_pd['Price_i'] = missing_heating_pd['Price_i'] + heat_factor*miss
 
 
 driver.quit()
-
-
-
-
-
-
-
 
 
 
