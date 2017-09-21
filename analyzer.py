@@ -63,8 +63,14 @@ def clean_zp(inp):
 def make_string(inp):
     return str(inp)+" Germany"
 
-res_pd = pd.read_csv('16092017_3.csv',encoding='utf-8')
-#res_pd = pd.read_csv('16092017_3.csv')
+
+
+
+
+
+
+# read file
+res_pd = pd.read_csv('20092017_pack.csv',encoding='utf-8')
 
 w_pd = res_pd
 
@@ -81,8 +87,8 @@ w_pd['Country'] = ' Germany'
 
 
 
-
-w_pd.to_csv('16092017_3_i.csv', header=True, index=False, encoding='utf-8')
+# Writing file readable by power BI
+w_pd.to_csv('20092017_powerBI.csv', header=True, index=False, encoding='utf-8')
 
 # Full rent
 pure_pd =w_pd[~w_pd['Price'].str.contains('eben')]
