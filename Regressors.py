@@ -53,7 +53,7 @@ y = dataset.iloc[:, 4].values
 
 # Splitting the dataset into the Training set and Test set
 from sklearn.cross_validation import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.8, random_state = 0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
 
 
 
@@ -141,7 +141,7 @@ classifier = Sequential()
 classifier.add(Dense(units = 40, kernel_initializer = 'normal', activation = 'relu', input_dim = N_feat))
 classifier.add(Dense(units = 1, kernel_initializer = 'normal'))
 classifier.compile(loss='mean_squared_error', optimizer='adam')
-histor = classifier.fit(X_train, y_train, batch_size = 1000, epochs = 5000)
+histor = classifier.fit(X_train, y_train, batch_size = 10, epochs = 500)
 y_pred_nn = classifier.predict(X_test)
 y_pred_nn = sc_y.inverse_transform(y_pred_nn)
 
@@ -207,6 +207,10 @@ r2_nn = get_adjust_R_2(y_t,y_pred_nn.reshape(N,),X_test.shape[1])
 
 diff_df_nn = pd.DataFrame()
 diff_df_nn["Cost_diff"] = 100.0*(y_t-y_pred_nn.reshape(N,))/y_t
+
+diff_df_lm = pd.DataFrame()
+diff_df_lm["Cost_diff"] = 100.0*(y_t-y_pred_lm.reshape(N,))/y_t
+
 
 
 
